@@ -129,4 +129,5 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           gh release create "$tag" --title="$tag" --draft \
+            --repo ${{ github.repository }} \
             dist-*/jisyotool-*.zip
