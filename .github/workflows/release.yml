@@ -123,11 +123,13 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
 
+      - name: Check out repository code
+        uses: actions/checkout@v3
+
       - name: Create draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           gh release create "$tag" --title="$tag" --draft \
-            --repo ${{ github.repository }} \
             dist-*/jisyotool-*.zip
