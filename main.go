@@ -1,7 +1,7 @@
 /* vim:ts=4:
 * Author: 奈幾乃(uakms)
  * Created: 2015-04-09
- * Revised: 2024-12-03
+ * Revised: 2024-12-10
  */
 
 package main
@@ -81,7 +81,7 @@ func outputJsonDict(jsonDictArr []string, pref string, fname string) {
 func checkerDict(jisyoPath string) {
 	var (
 		extractArr   = []string{}
-		reIncomplete = regexp.MustCompile("　|；| /.\\S*;|^.\\S*/")
+		reIncomplete = regexp.MustCompile("　|；| /.\\S*;|^.\\S*/|\\s$")
 	)
 
 	ifile, err := os.Open(jisyoPath)
@@ -93,12 +93,9 @@ func checkerDict(jisyoPath string) {
 	scanner := bufio.NewScanner(ifile)
 
 	for scanner.Scan() {
-		commentedLine := reComment.MatchString(scanner.Text())
-		if commentedLine == false {
-			fault := reIncomplete.MatchString(scanner.Text())
-			if fault == true {
-				extractArr = append(extractArr, scanner.Text())
-			}
+		fault := reIncomplete.MatchString(scanner.Text())
+		if fault == true {
+			extractArr = append(extractArr, scanner.Text())
 		}
 	}
 
