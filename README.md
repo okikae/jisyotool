@@ -8,6 +8,12 @@
 go install github.com/okikae/jisyotool
 ```
 
+もしくは Releases から各環境向けの zip ファイルをダウンロードしてください。
+
+GitHub Actions で生成していますが、自分では環境を持っていないため動作確認ができていません(macOS でさえ)。Linux や Windows での野良バイナリの実行に対するセキュリティがどのようなものかわからないため、もしかしたら実行すらできないかもしれません。
+
+`go install` しましょう！
+
 ### 使い方
 
 コマンドラインから次のように使います。
