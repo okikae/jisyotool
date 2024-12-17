@@ -1,7 +1,7 @@
 /* vim:ts=4:
-* Author: 奈幾乃(uakms)
+ * Author: 奈幾乃(uakms)
  * Created: 2015-04-09
- * Revised: 2024-12-10
+ * Revised: 2024-12-13
  */
 
 package main
@@ -20,7 +20,7 @@ var (
 	reSepa    = regexp.MustCompile(" /")                     //辞書の区切り文字
 )
 
-func createJsonDict(jisyoPath string) []string {
+func simpleCreateJsonDict(jisyoPath string, flag string) []string {
 	jsonDictArr := []string{}
 	ifile, err := os.Open(jisyoPath)
 	if err != nil {
@@ -32,16 +32,13 @@ func createJsonDict(jisyoPath string) []string {
 
 	for scanner.Scan() {
 		commentedLine := reComment.MatchString(scanner.Text())
-
 		if commentedLine == false {
 			mbody := reNote.ReplaceAllString(scanner.Text(), "")
 			supl := reNote.FindStringSubmatch(scanner.Text())
 			suplstr := ""
-
 			if len(supl) != 0 {
 				reSplmnt := regexp.MustCompile("\\[(.*)\\]")
 				supl2 := reSplmnt.FindAllStringSubmatch(supl[0], -1)
-
 				if len(supl2) != 0 {
 					reSubSep := regexp.MustCompile("\\|")
 					suplstr = "[\"" +
@@ -52,10 +49,76 @@ func createJsonDict(jisyoPath string) []string {
 			} else {
 				suplstr = "[]"
 			}
+			pair := reSepa.Split(mbody, 2)
+			if flag == "normal" {
+				elem :=
+					"[\"" + pair[0] + "\", \"" + pair[1] + "\", " + suplstr + "]"
+				jsonDictArr = append(jsonDictArr, elem)
+			} else if flag == "reverse" {
+				elem :=
+					"[\"" + pair[1] + "\", \"" + pair[0] + "\", " + suplstr + "]"
+				jsonDictArr = append(jsonDictArr, elem)
+			}
+		}
+	}
+	return jsonDictArr
+}
 
-			mainstr := reSepa.ReplaceAllString(mbody, "\", \"")
-			elem := "[\"" + mainstr + "\", " + suplstr + "]"
-			jsonDictArr = append(jsonDictArr, elem)
+func simpleOutputJsonDict(jsonDictArr []string) {
+	fmt.Println("[")
+	for i := 0; i < len(jsonDictArr)-1; i++ {
+		fmt.Println("  "+jsonDictArr[i]+",")
+	}
+	fmt.Println("  "+jsonDictArr[len(jsonDictArr)-1]+"\n]")
+	return
+}
+
+
+func createJsonDict(jisyoPath string, flag string) []string {
+	jsonDictArr := []string{}
+	ifile, err := os.Open(jisyoPath)
+	if err != nil {
+		fmt.Println("ファイルを読み込めませんでした")
+		os.Exit(0)
+	}
+	defer ifile.Close()
+	scanner := bufio.NewScanner(ifile)
+
+	for scanner.Scan() {
+		var isExcludeLine bool = false
+		if flag == "normal" {
+			isExcludeLine = (strings.Contains(scanner.Text(), "新旧変換で不要？") || strings.Contains(scanner.Text(), "新旧誤変換"))
+		} else if flag == "reverse" {
+			isExcludeLine = (strings.Contains(scanner.Text(), "旧新誤変換") || strings.Contains(scanner.Text(), "旧新変換で不要？"))
+		}
+		commentedLine := reComment.MatchString(scanner.Text())
+		if (commentedLine == false) && (isExcludeLine == false) {
+			mbody := reNote.ReplaceAllString(scanner.Text(), "")
+			supl := reNote.FindStringSubmatch(scanner.Text())
+			suplstr := ""
+			if len(supl) != 0 {
+				reSplmnt := regexp.MustCompile("\\[(.*)\\]")
+				supl2 := reSplmnt.FindAllStringSubmatch(supl[0], -1)
+				if len(supl2) != 0 {
+					reSubSep := regexp.MustCompile("\\|")
+					suplstr = "[\"" +
+						reSubSep.ReplaceAllString(supl2[0][1], "\", \"") + "\"]"
+				} else {
+					suplstr = "[]"
+				}
+			} else {
+				suplstr = "[]"
+			}
+			pair := reSepa.Split(mbody, 2)
+			if flag == "normal" {
+				elem :=
+					"[\"" + pair[0] + "\", \"" + pair[1] + "\", " + suplstr + "]"
+				jsonDictArr = append(jsonDictArr, elem)
+			} else if flag == "reverse" {
+				elem :=
+					"[\"" + pair[1] + "\", \"" + pair[0] + "\", " + suplstr + "]"
+				jsonDictArr = append(jsonDictArr, elem)
+			}
 		}
 	}
 	return jsonDictArr
@@ -169,14 +232,18 @@ func outputDict(mainDictArr [][]string, flag string) {
 }
 
 func printUsage() {
-	fmt.Println("Usage: jisyotool option inputfile")
+	fmt.Println("Usage: dictutil option inputfile")
 	fmt.Println("  option:")
-	fmt.Println("          -n [normal]  カラム1 カラム2 の順で出力")
-	fmt.Println("          -r [reverse] カラム2 カラム1 の順で出力")
-	fmt.Println("          -j [json]    JSON形式でファイルに出力")
-	fmt.Println("          -t [json]    JSON形式でts拡張子のファイルに出力")
-	fmt.Println("          -c [check]   辞書をチェック")
-	fmt.Println("          -l [length]  要素数を出力")
+	fmt.Println("          -jn [normal]  カラム1 カラム2 の順で JSON 出力")
+	fmt.Println("          -jr [reverse] カラム2 カラム1 の順で JSON 出力")
+	fmt.Println("          -n [normal]   カラム1 カラム2 の順で出力")
+	fmt.Println("          -r [reverse]  カラム2 カラム1 の順で出力")
+	fmt.Println("          -j [json]     JSON形式でファイルに出力")
+	fmt.Println("          -j2 [json]    JSON形式でファイルに出力(分離)")
+	fmt.Println("          -t [json]     JSON形式でts拡張子のファイルに出力")
+	fmt.Println("          -t2 [json]    JSON形式でts拡張子のファイルに出力(分離)")
+	fmt.Println("          -c [check]    辞書をチェック")
+	fmt.Println("          -l [length]   要素数を出力")
 	return
 }
 
@@ -196,21 +263,34 @@ func parseArgument() {
 		case os.Args[1] == "-n":
 			outputDict(mainArr, "normal")
 			return
+
 		case os.Args[1] == "-r":
 			outputDict(mainArr, "reverse")
 			return
+
 		case os.Args[1] == "-l":
 			fmt.Println(len(mainArr))
 			return
+
 		case os.Args[1] == "-c":
 			checkerDict(jisyoPath)
 			checkDictDuplicate(mainArr)
 			return
+
+		case os.Args[1] == "-jn":
+			jsonArr := simpleCreateJsonDict(jisyoPath, "normal")
+			simpleOutputJsonDict(jsonArr)
+			return
+
+		case os.Args[1] == "-jr":
+			jsonArr := simpleCreateJsonDict(jisyoPath, "reverse")
+			simpleOutputJsonDict(jsonArr)
+			return
+
 		case os.Args[1] == "-j":
 			re := regexp.MustCompile("(.*)-jisyo")
 			matched := re.FindStringSubmatch(jisyoName)
-			jsonArr := createJsonDict(jisyoPath)
-
+			jsonArr := createJsonDict(jisyoPath, "normal")
 			if matched[1] == "kana" {
 				outputJsonDict(jsonArr, "var kanaArray", "dic-kana.js")
 			} else if matched[1] == "kanji" {
@@ -220,15 +300,65 @@ func parseArgument() {
 				fmt.Println("[kana, kanji] のみです。")
 			}
 			return
+
+		case os.Args[1] == "-j2":
+			re := regexp.MustCompile("(.*)-jisyo")
+			matched := re.FindStringSubmatch(jisyoName)
+			if matched[1] == "kana" {
+				jsonArr0 := createJsonDict(jisyoPath, "reverse")
+				outputJsonDict(jsonArr0,
+					"var toModernKanaArray", "dic-to-modern-kana.js")
+				jsonArr1 := createJsonDict(jisyoPath, "normal")
+				outputJsonDict(jsonArr1,
+					"var toTradKanaArray", "dic-to-trad-kana.js")
+			} else if matched[1] == "kanji" {
+				jsonArr0 := createJsonDict(jisyoPath, "reverse")
+				outputJsonDict(jsonArr0,
+					"var toNewKanjiArray", "dic-to-new-kanji.js")
+				jsonArr1 := createJsonDict(jisyoPath, "normal")
+				outputJsonDict(jsonArr1,
+					"var toOldKanjiArray", "dic-to-old-kanji.js")
+			} else {
+				fmt.Println("JSON出力に対応している辞書は")
+				fmt.Println("[kana, kanji] のみです。")
+			}
+			return
+
 		case os.Args[1] == "-t":
 			re := regexp.MustCompile("(.*)-jisyo")
 			matched := re.FindStringSubmatch(jisyoName)
-			jsonArr := createJsonDict(jisyoPath)
-
+			jsonArr := createJsonDict(jisyoPath, "normal")
 			if matched[1] == "kana" {
 				outputJsonDict(jsonArr, "export const kanaArray: Array<[string, string, Array<string>]>", "kanajisyo.ts")
 			} else if matched[1] == "kanji" {
 				outputJsonDict(jsonArr, "export const kanjiArray: Array<[string, string, Array<string>]>", "kanjijisyo.ts")
+			} else {
+				fmt.Println("JSON出力に対応している辞書は")
+				fmt.Println("[kana, kanji] のみです。")
+			}
+			return
+
+		case os.Args[1] == "-t2":
+			re := regexp.MustCompile("(.*)-jisyo")
+			matched := re.FindStringSubmatch(jisyoName)
+			if matched[1] == "kana" {
+				jsonArr0 := createJsonDict(jisyoPath, "reverse")
+				outputJsonDict(jsonArr0,
+					"export const toModernKanaArray: Array<[string, string, Array<string>]>",
+					"modernkanajisyo.ts")
+				jsonArr1 := createJsonDict(jisyoPath, "normal")
+				outputJsonDict(jsonArr1,
+					"export const toTradKanaArray: Array<[string, string, Array<string>]>",
+					"tradkanajisyo.ts")
+			} else if matched[1] == "kanji" {
+				jsonArr0 := createJsonDict(jisyoPath, "reverse")
+				outputJsonDict(jsonArr0,
+					"export const toNewKanjiArray: Array<[string, string, Array<string>]>",
+					"newkanjijisyo.ts")
+				jsonArr1 := createJsonDict(jisyoPath, "normal")
+				outputJsonDict(jsonArr1,
+					"export const toOldKanjiArray: Array<[string, string, Array<string>]>",
+					"oldkanjijisyo.ts")
 			} else {
 				fmt.Println("JSON出力に対応している辞書は")
 				fmt.Println("[kana, kanji] のみです。")
